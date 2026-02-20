@@ -11,15 +11,47 @@ body { font-family: "Comic Sans MS", cursive, sans-serif; background: linear-gra
 h1 { text-align:center; font-size:3rem; color:#fff; text-shadow:3px 3px #ff4081; }
 
 table { width:100%; table-layout:fixed; border-collapse:collapse; background:white; border-radius:20px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,.2); }
-th, td { width:20%; padding:25px; text-align:center; }
-th { cursor:pointer; color:white; position:relative; transition:transform .2s; }
-th:hover { transform:scale(1.03); }
+th, td { width:20%; padding:25px; text-align:center; vertical-align:top; }
+th { cursor:pointer; color:white; position:relative; }
 
-.team-name { font-size:2.2rem; font-weight:bold; text-shadow:2px 2px 4px rgba(0,0,0,.35); }
-.edit-btn { position:absolute; bottom:6px; right:8px; background:rgba(255,255,255,.85); border:none; border-radius:8px; font-size:1rem; padding:2px 6px; cursor:pointer; }
+.team-name { font-size:2.3rem; font-weight:bold; text-shadow:2px 2px 4px rgba(0,0,0,.35); }
+
+/* Discrete pencil button */
+.edit-btn {
+  position:absolute;
+  bottom:6px;
+  right:6px;
+  width:22px;
+  height:22px;
+  border:none;
+  padding:0;
+  background:transparent;
+  cursor:pointer;
+  opacity:.6;
+}
+.edit-btn:hover { opacity:1; }
+.edit-btn svg { width:100%; height:100%; fill:rgba(0,0,0,.35); }
 
 .score { font-size:2.5rem; font-weight:bold; }
-.badge { display:inline-block; background:#444; color:white; padding:6px 10px; border-radius:10px; margin:4px; font-size:.8rem; }
+
+/* Circular achievement badges */
+.badges-row {
+  margin-top:10px;
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+.badge-icon {
+  width:46px;
+  height:46px;
+  border-radius:50%;
+  overflow:hidden;
+  border:3px solid #fff;
+  box-shadow:0 2px 6px rgba(0,0,0,.3);
+  margin:4px;
+}
+.badge-icon:nth-child(odd){ margin-top:12px; } /* stagger effect */
+.badge-icon img { width:100%; height:100%; object-fit:cover; }
 
 @keyframes flash { 0%{filter:brightness(1);} 50%{filter:brightness(2.2);} 100%{filter:brightness(1);} }
 .flash { animation: flash .6s ease-in-out 4; }
@@ -47,16 +79,34 @@ input { font-size:1.2rem; padding:8px; margin-top:10px; }
 
 <table>
 <tr>
-  <th v-for="team in teams" :key="team.id" :class="{flash: flashingTeam===team.id}" :style="{background: team.color}" @click="openMenu(team)">
+  <th v-for="team in teams"
+      :key="team.id"
+      :class="{flash: flashingTeams.includes(team.id)}"
+      :style="{background: team.color}"
+      @click="openMenu(team)">
+
       <div class="team-name">{{team.name}}</div>
-      <button class="edit-btn" @click.stop="editTeam(team)">✏️</button>
-      <div>
-        <span v-for="badge in team.badges" class="badge">{{badge}}</span>
-      </div>
+
+      <!-- small darker-shade pencil -->
+      <button class="edit-btn" @click.stop="editTeam(team)" title="Rename team">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 17.25V21h3.75L19.81 7.94l-3.75-3.75L3 17.25zm18-11.5a1 1 0 0 0 0-1.41l-1.34-1.34a1 1 0 0 0-1.41 0l-1.13 1.13 3.75 3.75L21 5.75z"/>
+        </svg>
+      </button>
   </th>
 </tr>
+
 <tr>
-  <td v-for="team in teams" class="score">{{team.score}}</td>
+  <td v-for="team in teams">
+    <div class="score">{{team.score}}</div>
+
+    <!-- Achievements now live under the points -->
+    <div class="badges-row">
+      <div v-for="badge in team.badges" class="badge-icon">
+        <img :src="badgeImages[badge]" />
+      </div>
+    </div>
+  </td>
 </tr>
 </table>
 
@@ -66,6 +116,7 @@ input { font-size:1.2rem; padding:8px; margin-top:10px; }
 <div v-if="activeTeam" class="overlay" @click.self="activeTeam=null">
   <div class="menu">
     <h2>{{activeTeam.name}} Team</h2>
+
     <div class="menu-columns">
       <div class="menu-section">
         <h3>Points</h3>
@@ -73,7 +124,10 @@ input { font-size:1.2rem; padding:8px; margin-top:10px; }
         <button v-for="task in repeatableTasks" @click="addPoints(task)">{{task.name}} (+{{task.points}})</button>
 
         <strong>One-Off Bonuses</strong>
-        <button v-for="task in oneOffTasks" :class="{used: activeTeam.usedTasks.includes(task.name)}" :disabled="activeTeam.usedTasks.includes(task.name)" @click="completeOneOff(task)">
+        <button v-for="task in oneOffTasks"
+          :class="{used: activeTeam.usedTasks.includes(task.name)}"
+          :disabled="activeTeam.usedTasks.includes(task.name)"
+          @click="completeOneOff(task)">
           {{task.name}} (+{{task.points}})
         </button>
       </div>
@@ -84,7 +138,10 @@ input { font-size:1.2rem; padding:8px; margin-top:10px; }
         <button v-for="item in shopRepeatable" @click="buyItem(item)">{{item.name}} (-{{item.cost}})</button>
 
         <strong>One-Off</strong>
-        <button v-for="item in shopOneOff" :class="{used: activeTeam.usedShop.includes(item.name)}" :disabled="activeTeam.usedShop.includes(item.name)" @click="buyOneOff(item)">
+        <button v-for="item in shopOneOff"
+          :class="{used: activeTeam.usedShop.includes(item.name)}"
+          :disabled="activeTeam.usedShop.includes(item.name)"
+          @click="buyOneOff(item)">
           {{item.name}} (-{{item.cost}})
         </button>
       </div>
@@ -108,50 +165,16 @@ input { font-size:1.2rem; padding:8px; margin-top:10px; }
 </div>
 
 <script>
-/*
-  SOUND FIX:
-  Replaced file-based audio with Web Audio API tones.
-  This avoids codec/bitrate issues and works reliably on GitHub Pages.
-*/
+/* Web Audio sound effects */
 class SoundFX {
-  constructor(){
-    this.ctx = null;
-  }
-
-  ensure(){
-    if(!this.ctx){
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if(this.ctx.state === 'suspended') this.ctx.resume();
-  }
-
-  beep(freq, duration, type='sine', volume=0.2){
-    this.ensure();
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    osc.type = type;
-    osc.frequency.value = freq;
-
-    gain.gain.value = volume;
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc.start();
-    osc.stop(this.ctx.currentTime + duration);
-  }
-
-  earn(){ this.beep(880, 0.12, 'triangle'); }
-  spend(){ this.beep(220, 0.15, 'sawtooth'); }
-  win(){
-    this.beep(660,0.15);
-    setTimeout(()=>this.beep(880,0.15),150);
-    setTimeout(()=>this.beep(1320,0.2),300);
-  }
+  constructor(){ this.ctx=null; }
+  ensure(){ if(!this.ctx){ this.ctx=new(window.AudioContext||window.webkitAudioContext)(); } if(this.ctx.state==='suspended') this.ctx.resume(); }
+  tone(f,d,t='sine',v=.2){ this.ensure(); const o=this.ctx.createOscillator(); const g=this.ctx.createGain(); o.type=t; o.frequency.value=f; g.gain.value=v; o.connect(g); g.connect(this.ctx.destination); o.start(); o.stop(this.ctx.currentTime+d); }
+  earn(){ this.tone(880,.12,'triangle'); }
+  spend(){ this.tone(220,.15,'sawtooth'); }
+  win(){ this.tone(660,.15); setTimeout(()=>this.tone(880,.15),150); setTimeout(()=>this.tone(1320,.2),300); }
 }
-
-const sfx = new SoundFX();
+const sfx=new SoundFX();
 
 const { createApp } = Vue;
 
@@ -167,12 +190,22 @@ teams: JSON.parse(localStorage.getItem('pp_teams')) || [
 ],
 
 activeTeam:null,
-flashingTeam:null,
-lastLeader:null,
+flashingTeams:[],
+lastMaxScore:0,
 
 showReset:false,
 resetCode:'',
 resetInput:'',
+
+/* simple inline SVG "images" for achievements */
+badgeImages:{
+ 'Flip & catch':'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="gold"/><text x="50" y="60" font-size="50" text-anchor="middle">🥞</text></svg>',
+ 'Eat a pancake':'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="orange"/><text x="50" y="60" font-size="50" text-anchor="middle">😋</text></svg>',
+ 'Deliver 3 pancakes':'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="peru"/><text x="50" y="60" font-size="45" text-anchor="middle">📦</text></svg>',
+ 'Scottish delivery':'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="steelblue"/><text x="50" y="60" font-size="45" text-anchor="middle">🎤</text></svg>',
+ 'High-5 Tea':'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="pink"/><text x="50" y="60" font-size="45" text-anchor="middle">🫖</text></svg>',
+ 'Clean at inspection':'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="lightgreen"/><text x="50" y="60" font-size="45" text-anchor="middle">🧽</text></svg>'
+},
 
 repeatableTasks:[
  {name:'Make a pancake',points:10},
@@ -192,84 +225,59 @@ oneOffTasks:[
 ],
 
 shopRepeatable:[
- {name:'Matchstick',cost:2},
- {name:'Peg',cost:2},
- {name:'Pan',cost:4},
- {name:'Candle',cost:4},
- {name:'Teaspoon',cost:5},
- {name:'2 bottles of mix',cost:15},
- {name:'Bottle of oil',cost:2},
- {name:'Question',cost:5}
+ {name:'Matchstick',cost:2},{name:'Peg',cost:2},{name:'Pan',cost:4},{name:'Candle',cost:4},{name:'Teaspoon',cost:5},{name:'2 bottles of mix',cost:15},{name:'Bottle of oil',cost:2},{name:'Question',cost:5}
 ],
 
-shopOneOff:[
- {name:'Ultimate starter set',cost:50},
- {name:'Matchbox',cost:10}
-]
+shopOneOff:[ {name:'Ultimate starter set',cost:50},{name:'Matchbox',cost:10} ]
 };
 },
 
 methods:{
-openMenu(team){ sfx.ensure(); this.activeTeam = team; },
+openMenu(team){ sfx.ensure(); this.activeTeam=team; },
 
-editTeam(team){
- const newName = prompt('Enter new team name:', team.name);
- if(newName && newName.trim()){ team.name = newName.trim(); this.save(); }
-},
+editTeam(team){ const n=prompt('Enter new team name:',team.name); if(n&&n.trim()){team.name=n.trim(); this.save();}},
 
-addPoints(task){ this.activeTeam.score += task.points; sfx.earn(); this.afterScoreChange(); },
+addPoints(task){ this.activeTeam.score+=task.points; sfx.earn(); this.afterScoreChange(); },
 
 completeOneOff(task){
  if(this.activeTeam.usedTasks.includes(task.name)) return;
- this.activeTeam.score += task.points;
+ this.activeTeam.score+=task.points;
  this.activeTeam.usedTasks.push(task.name);
  this.activeTeam.badges.push(task.name);
  sfx.earn();
  this.afterScoreChange();
 },
 
-buyItem(item){
- if(this.activeTeam.score < item.cost) return;
- this.activeTeam.score -= item.cost;
- sfx.spend();
- this.afterScoreChange();
-},
+buyItem(item){ if(this.activeTeam.score<item.cost) return; this.activeTeam.score-=item.cost; sfx.spend(); this.afterScoreChange(); },
 
 buyOneOff(item){
- if(this.activeTeam.usedShop.includes(item.name)) return;
- if(this.activeTeam.score < item.cost) return;
- this.activeTeam.score -= item.cost;
+ if(this.activeTeam.usedShop.includes(item.name)||this.activeTeam.score<item.cost) return;
+ this.activeTeam.score-=item.cost;
  this.activeTeam.usedShop.push(item.name);
  sfx.spend();
  this.afterScoreChange();
 },
 
-afterScoreChange(){ this.checkLeader(); this.save(); },
+afterScoreChange(){ this.checkLeaders(); this.save(); },
 
-checkLeader(){
- const leader = [...this.teams].sort((a,b)=>b.score-a.score)[0];
- if(this.lastLeader !== leader.id){
-   this.flashingTeam = leader.id;
-   sfx.win();
-   setTimeout(()=>this.flashingTeam=null,2500);
- }
- this.lastLeader = leader.id;
+/* Flash ALL teams tied for highest score */
+checkLeaders(){
+ const max=Math.max(...this.teams.map(t=>t.score));
+ const leaders=this.teams.filter(t=>t.score===max).map(t=>t.id);
+
+ if(max!==this.lastMaxScore){ sfx.win(); }
+
+ this.flashingTeams=leaders;
+ setTimeout(()=>this.flashingTeams=[],2500);
+
+ this.lastMaxScore=max;
 },
 
-openReset(){
- this.resetCode = Math.random().toString(36).substring(2,6).toUpperCase();
- this.resetInput='';
- this.showReset=true;
-},
+openReset(){ this.resetCode=Math.random().toString(36).substring(2,6).toUpperCase(); this.resetInput=''; this.showReset=true; },
 
-confirmReset(){
- if(this.resetInput === this.resetCode){
-   localStorage.removeItem('pp_teams');
-   location.reload();
- } else alert('Code incorrect!');
-},
+confirmReset(){ if(this.resetInput===this.resetCode){ localStorage.removeItem('pp_teams'); location.reload(); } else alert('Code incorrect!'); },
 
-save(){ localStorage.setItem('pp_teams', JSON.stringify(this.teams)); }
+save(){ localStorage.setItem('pp_teams',JSON.stringify(this.teams)); }
 }
 }).mount('#app');
 </script>
