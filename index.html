@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pancake Pandemonium</title>
+
+<!-- Vue (no build step required) -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+<style>
+body {
+  font-family: "Comic Sans MS", cursive, sans-serif;
+  background: linear-gradient(135deg,#ffb347,#ffcc33);
+  margin:0;
+  padding:20px;
+}
+
+h1 {
+  text-align:center;
+  font-size:3em;
+  color:#fff;
+  text-shadow:3px 3px #ff4081;
+}
+
+table {
+  width:100%;
+  border-collapse:collapse;
+  background:white;
+  border-radius:20px;
+  overflow:hidden;
+  box-shadow:0 10px 25px rgba(0,0,0,.2);
+}
+
+th, td {
+  padding:20px;
+  text-align:center;
+  font-size:1.3em;
+}
+
+th {
+  cursor:pointer;
+  color:white;
+}
+
+.score {
+  font-size:2em;
+  font-weight:bold;
+}
+
+.badge {
+  display:inline-block;
+  background:#444;
+  color:white;
+  padding:4px 8px;
+  border-radius:10px;
+  margin:3px;
+  font-size:.7em;
+}
+
+.menu {
+  position:fixed;
+  top:10%;
+  left:50%;
+  transform:translateX(-50%);
+  width:420px;
+  background:white;
+  border-radius:20px;
+  padding:20px;
+  box-shadow:0 20px 50px rgba(0,0,0,.4);
+}
+
+.menu h2 {
+  margin-top:0;
+}
+
+button {
+  width:100%;
+  margin:5px 0;
+  padding:10px;
+  border:none;
+  border-radius:10px;
+  font-size:1em;
+  cursor:pointer;
+  background:#ffcc00;
+}
+
+button:hover { background:#ff9800; }
+
+button.used {
+  background:#ccc;
+  cursor:not-allowed;
+}
+
+.close {
+  background:#ff4081;
+  color:white;
+  font-weight:bold;
+}
+</style>
+</head>
+
+<body>
+<div id="app">
+
+<h1>🥞 Pancake Pandemonium 🥞</h1>
+
+<table>
+<tr>
+  <th v-for="team in teams"
+      :style="{background: team.color}"
+      @click="openMenu(team)">
+      {{team.name}}
+      <div>
+        <span v-for="badge in team.badges" class="badge">
+          {{badge}}
+        </span>
+      </div>
+  </th>
+</tr>
+<tr>
+  <td v-for="team in teams" class="score">{{team.score}}</td>
+</tr>
+</table>
+
+<!-- Popup Menu -->
+<div v-if="activeTeam" class="menu">
+  <h2>{{activeTeam.name}} Team</h2>
+
+  <h3>Points</h3>
+
+  <strong>Repeatable</strong>
+  <button v-for="task in repeatableTasks"
+          @click="addPoints(task)">
+          {{task.name}} (+{{task.points}})
+  </button>
+
+  <strong>One-Off Bonuses</strong>
+  <button v-for="task in oneOffTasks"
+          :class="{used: activeTeam.usedTasks.includes(task.name)}"
+          :disabled="activeTeam.usedTasks.includes(task.name)"
+          @click="completeOneOff(task)">
+          {{task.name}} (+{{task.points}})
+  </button>
+
+  <h3>Shop</h3>
+
+  <strong>Repeatable</strong>
+  <button v-for="item in shopRepeatable"
+          @click="buyItem(item)">
+          {{item.name}} (-{{item.cost}})
+  </button>
+
+  <strong>One-Off Purchases</strong>
+  <button v-for="item in shopOneOff"
+          :class="{used: activeTeam.usedShop.includes(item.name)}"
+          :disabled="activeTeam.usedShop.includes(item.name)"
+          @click="buyOneOff(item)">
+          {{item.name}} (-{{item.cost}})
+  </button>
+
+  <button class="close" @click="activeTeam=null">Close</button>
+</div>
+
+</div>
+
+<script>
+const { createApp } = Vue;
+
+createApp({
+data() {
+return {
+teams: JSON.parse(localStorage.getItem("pp_teams")) || [
+ {name:"Blue",color:"#2196f3",score:0,badges:[],usedTasks:[],usedShop:[]},
+ {name:"Red",color:"#f44336",score:0,badges:[],usedTasks:[],usedShop:[]},
+ {name:"White",color:"#9e9e9e",score:0,badges:[],usedTasks:[],usedShop:[]},
+ {name:"Yellow",color:"#ffeb3b",score:0,badges:[],usedTasks:[],usedShop:[]},
+ {name:"Green",color:"#4caf50",score:0,badges:[],usedTasks:[],usedShop:[]}
+],
+
+activeTeam:null,
+
+repeatableTasks:[
+ {name:"Make a pancake",points:10},
+ {name:"Make a wonky pancake",points:8},
+ {name:"5 pancake stack",points:20},
+ {name:"10 pancake stack",points:50},
+ {name:"Answer a question",points:10}
+],
+
+oneOffTasks:[
+ {name:"Flip & catch",points:50},
+ {name:"Eat a pancake",points:50},
+ {name:"Deliver 3 pancakes",points:50},
+ {name:"Scottish delivery",points:50},
+ {name:"High-5 Tea",points:60},
+ {name:"Clean at inspection",points:50}
+],
+
+shopRepeatable:[
+ {name:"Matchstick",cost:2},
+ {name:"Peg",cost:2},
+ {name:"Pan",cost:4},
+ {name:"Candle",cost:4},
+ {name:"Teaspoon",cost:5},
+ {name:"2 bottles of mix",cost:15},
+ {name:"Bottle of oil",cost:2},
+ {name:"Question",cost:5}
+],
+
+shopOneOff:[
+ {name:"Ultimate starter set",cost:50},
+ {name:"Matchbox",cost:10}
+]
+};
+},
+
+methods:{
+openMenu(team){ this.activeTeam = team; },
+
+addPoints(task){
+ this.activeTeam.score += task.points;
+ this.save();
+},
+
+completeOneOff(task){
+ if(this.activeTeam.usedTasks.includes(task.name)) return;
+
+ this.activeTeam.score += task.points;
+ this.activeTeam.usedTasks.push(task.name);
+ this.activeTeam.badges.push(task.name);
+ this.save();
+},
+
+buyItem(item){
+ if(this.activeTeam.score < item.cost) return;
+ this.activeTeam.score -= item.cost;
+ this.save();
+},
+
+buyOneOff(item){
+ if(this.activeTeam.usedShop.includes(item.name)) return;
+ if(this.activeTeam.score < item.cost) return;
+
+ this.activeTeam.score -= item.cost;
+ this.activeTeam.usedShop.push(item.name);
+ this.save();
+},
+
+save(){
+ localStorage.setItem("pp_teams", JSON.stringify(this.teams));
+}
+}
+}).mount("#app");
+</script>
+
+</body>
+</html>
