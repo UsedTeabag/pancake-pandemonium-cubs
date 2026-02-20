@@ -7,157 +7,36 @@
 
 <style>
 :root { font-size: 20px; }
+body { font-family: "Comic Sans MS", cursive, sans-serif; background: linear-gradient(135deg,#ffb347,#ffcc33); margin:0; padding:20px; }
+h1 { text-align:center; font-size:3rem; color:#fff; text-shadow:3px 3px #ff4081; }
 
-body {
-  font-family: "Comic Sans MS", cursive, sans-serif;
-  background: linear-gradient(135deg,#ffb347,#ffcc33);
-  margin:0;
-  padding:20px;
-}
-
-h1 {
-  text-align:center;
-  font-size:3rem;
-  color:#fff;
-  text-shadow:3px 3px #ff4081;
-}
-
-table {
-  width:100%;
-  table-layout:fixed; /* ensures fixed column widths */
-  border-collapse:collapse;
-  background:white;
-  border-radius:20px;
-  overflow:hidden;
-  box-shadow:0 10px 25px rgba(0,0,0,.2);
-}
-
-th, td {
-  width:20%; /* 5 equal columns */
-  padding:25px;
-  text-align:center;
-}
-
-th {
-  cursor:pointer;
-  color:white;
-  position:relative;
-  transition:transform .2s;
-}
-
+table { width:100%; table-layout:fixed; border-collapse:collapse; background:white; border-radius:20px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,.2); }
+th, td { width:20%; padding:25px; text-align:center; }
+th { cursor:pointer; color:white; position:relative; transition:transform .2s; }
 th:hover { transform:scale(1.03); }
 
-.team-name {
-  font-size:2.2rem; /* larger team names */
-  font-weight:bold;
-  text-shadow:2px 2px 4px rgba(0,0,0,.35); /* readability shadow */
-}
+.team-name { font-size:2.2rem; font-weight:bold; text-shadow:2px 2px 4px rgba(0,0,0,.35); }
+.edit-btn { position:absolute; bottom:6px; right:8px; background:rgba(255,255,255,.85); border:none; border-radius:8px; font-size:1rem; padding:2px 6px; cursor:pointer; }
 
-.edit-btn {
-  position:absolute;
-  bottom:6px;
-  right:8px;
-  background:rgba(255,255,255,.85);
-  border:none;
-  border-radius:8px;
-  font-size:1rem;
-  padding:2px 6px;
-  cursor:pointer;
-}
+.score { font-size:2.5rem; font-weight:bold; }
+.badge { display:inline-block; background:#444; color:white; padding:6px 10px; border-radius:10px; margin:4px; font-size:.8rem; }
 
-.score {
-  font-size:2.5rem;
-  font-weight:bold;
-}
-
-.badge {
-  display:inline-block;
-  background:#444;
-  color:white;
-  padding:6px 10px;
-  border-radius:10px;
-  margin:4px;
-  font-size:.8rem;
-}
-
-@keyframes flash {
-  0% { filter:brightness(1); }
-  50% { filter:brightness(2.2); }
-  100% { filter:brightness(1); }
-}
+@keyframes flash { 0%{filter:brightness(1);} 50%{filter:brightness(2.2);} 100%{filter:brightness(1);} }
 .flash { animation: flash .6s ease-in-out 4; }
 
-.overlay {
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.25);
-  display:flex;
-  align-items:flex-start;
-  justify-content:center;
-  padding-top:5vh;
-}
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,.25); display:flex; align-items:flex-start; justify-content:center; padding-top:5vh; }
+.menu { width:70vw; max-width:900px; background:white; border-radius:20px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,.4); }
+.menu-columns { display:flex; gap:20px; }
+.menu-section { flex:1; max-height:60vh; overflow-y:auto; border:2px dashed #ffd54f; border-radius:15px; padding:15px; }
 
-.menu {
-  width:70vw;
-  max-width:900px;
-  background:white;
-  border-radius:20px;
-  padding:20px;
-  box-shadow:0 20px 50px rgba(0,0,0,.4);
-}
-
-.menu-columns {
-  display:flex;
-  gap:20px;
-}
-
-.menu-section {
-  flex:1;
-  max-height:60vh;
-  overflow-y:auto;
-  border:2px dashed #ffd54f;
-  border-radius:15px;
-  padding:15px;
-}
-
-button {
-  width:100%;
-  margin:6px 0;
-  padding:14px;
-  border:none;
-  border-radius:12px;
-  font-size:1rem;
-  cursor:pointer;
-  background:#ffcc00;
-}
-
+button { width:100%; margin:6px 0; padding:14px; border:none; border-radius:12px; font-size:1rem; cursor:pointer; background:#ffcc00; }
 button:hover { background:#ff9800; }
 button.used { background:#ccc; cursor:not-allowed; }
 .close { background:#ff4081; color:white; }
 
-/* Reset button should NOT span width */
-.reset-btn {
-  position:fixed;
-  bottom:12px;
-  right:12px;
-  width:auto;
-  padding:8px 14px;
-  font-size:.85rem;
-  opacity:.7;
-}
-
-.reset-box {
-  background:white;
-  padding:25px;
-  border-radius:15px;
-  text-align:center;
-}
-
-input {
-  font-size:1.2rem;
-  padding:8px;
-  margin-top:10px;
-}
+.reset-btn { position:fixed; bottom:12px; right:12px; width:auto; padding:8px 14px; font-size:.85rem; opacity:.7; }
+.reset-box { background:white; padding:25px; border-radius:15px; text-align:center; }
+input { font-size:1.2rem; padding:8px; margin-top:10px; }
 </style>
 </head>
 
@@ -168,16 +47,9 @@ input {
 
 <table>
 <tr>
-  <th v-for="team in teams"
-      :key="team.id"
-      :class="{flash: flashingTeam===team.id}"
-      :style="{background: team.color}"
-      @click="openMenu(team)">
-
+  <th v-for="team in teams" :key="team.id" :class="{flash: flashingTeam===team.id}" :style="{background: team.color}" @click="openMenu(team)">
       <div class="team-name">{{team.name}}</div>
-
       <button class="edit-btn" @click.stop="editTeam(team)">✏️</button>
-
       <div>
         <span v-for="badge in team.badges" class="badge">{{badge}}</span>
       </div>
@@ -194,20 +66,14 @@ input {
 <div v-if="activeTeam" class="overlay" @click.self="activeTeam=null">
   <div class="menu">
     <h2>{{activeTeam.name}} Team</h2>
-
     <div class="menu-columns">
       <div class="menu-section">
         <h3>Points</h3>
         <strong>Repeatable</strong>
-        <button v-for="task in repeatableTasks" @click="addPoints(task)">
-          {{task.name}} (+{{task.points}})
-        </button>
+        <button v-for="task in repeatableTasks" @click="addPoints(task)">{{task.name}} (+{{task.points}})</button>
 
         <strong>One-Off Bonuses</strong>
-        <button v-for="task in oneOffTasks"
-          :class="{used: activeTeam.usedTasks.includes(task.name)}"
-          :disabled="activeTeam.usedTasks.includes(task.name)"
-          @click="completeOneOff(task)">
+        <button v-for="task in oneOffTasks" :class="{used: activeTeam.usedTasks.includes(task.name)}" :disabled="activeTeam.usedTasks.includes(task.name)" @click="completeOneOff(task)">
           {{task.name}} (+{{task.points}})
         </button>
       </div>
@@ -215,15 +81,10 @@ input {
       <div class="menu-section">
         <h3>Shop</h3>
         <strong>Repeatable</strong>
-        <button v-for="item in shopRepeatable" @click="buyItem(item)">
-          {{item.name}} (-{{item.cost}})
-        </button>
+        <button v-for="item in shopRepeatable" @click="buyItem(item)">{{item.name}} (-{{item.cost}})</button>
 
         <strong>One-Off</strong>
-        <button v-for="item in shopOneOff"
-          :class="{used: activeTeam.usedShop.includes(item.name)}"
-          :disabled="activeTeam.usedShop.includes(item.name)"
-          @click="buyOneOff(item)">
+        <button v-for="item in shopOneOff" :class="{used: activeTeam.usedShop.includes(item.name)}" :disabled="activeTeam.usedShop.includes(item.name)" @click="buyOneOff(item)">
           {{item.name}} (-{{item.cost}})
         </button>
       </div>
@@ -247,21 +108,62 @@ input {
 </div>
 
 <script>
-const earnSound = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQgAAAAA");
-const spendSound = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQgAAAAA");
-const winSound = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQgAAAAA");
+/*
+  SOUND FIX:
+  Replaced file-based audio with Web Audio API tones.
+  This avoids codec/bitrate issues and works reliably on GitHub Pages.
+*/
+class SoundFX {
+  constructor(){
+    this.ctx = null;
+  }
+
+  ensure(){
+    if(!this.ctx){
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if(this.ctx.state === 'suspended') this.ctx.resume();
+  }
+
+  beep(freq, duration, type='sine', volume=0.2){
+    this.ensure();
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = type;
+    osc.frequency.value = freq;
+
+    gain.gain.value = volume;
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start();
+    osc.stop(this.ctx.currentTime + duration);
+  }
+
+  earn(){ this.beep(880, 0.12, 'triangle'); }
+  spend(){ this.beep(220, 0.15, 'sawtooth'); }
+  win(){
+    this.beep(660,0.15);
+    setTimeout(()=>this.beep(880,0.15),150);
+    setTimeout(()=>this.beep(1320,0.2),300);
+  }
+}
+
+const sfx = new SoundFX();
 
 const { createApp } = Vue;
 
 createApp({
-data() {
+data(){
 return {
-teams: JSON.parse(localStorage.getItem("pp_teams")) || [
- {id:1,name:"Blue",color:"#2196f3",score:0,badges:[],usedTasks:[],usedShop:[]},
- {id:2,name:"Red",color:"#f44336",score:0,badges:[],usedTasks:[],usedShop:[]},
- {id:3,name:"White",color:"#9e9e9e",score:0,badges:[],usedTasks:[],usedShop:[]},
- {id:4,name:"Yellow",color:"#ffeb3b",score:0,badges:[],usedTasks:[],usedShop:[]},
- {id:5,name:"Green",color:"#4caf50",score:0,badges:[],usedTasks:[],usedShop:[]}
+teams: JSON.parse(localStorage.getItem('pp_teams')) || [
+ {id:1,name:'Blue',color:'#2196f3',score:0,badges:[],usedTasks:[],usedShop:[]},
+ {id:2,name:'Red',color:'#f44336',score:0,badges:[],usedTasks:[],usedShop:[]},
+ {id:3,name:'White',color:'#9e9e9e',score:0,badges:[],usedTasks:[],usedShop:[]},
+ {id:4,name:'Yellow',color:'#ffeb3b',score:0,badges:[],usedTasks:[],usedShop:[]},
+ {id:5,name:'Green',color:'#4caf50',score:0,badges:[],usedTasks:[],usedShop:[]}
 ],
 
 activeTeam:null,
@@ -269,74 +171,67 @@ flashingTeam:null,
 lastLeader:null,
 
 showReset:false,
-resetCode:"",
-resetInput:"",
+resetCode:'',
+resetInput:'',
 
 repeatableTasks:[
- {name:"Make a pancake",points:10},
- {name:"Make a wonky pancake",points:8},
- {name:"5 pancake stack",points:20},
- {name:"10 pancake stack",points:50},
- {name:"Answer a question",points:10}
+ {name:'Make a pancake',points:10},
+ {name:'Make a wonky pancake',points:8},
+ {name:'5 pancake stack',points:20},
+ {name:'10 pancake stack',points:50},
+ {name:'Answer a question',points:10}
 ],
 
 oneOffTasks:[
- {name:"Flip & catch",points:50},
- {name:"Eat a pancake",points:50},
- {name:"Deliver 3 pancakes",points:50},
- {name:"Scottish delivery",points:50},
- {name:"High-5 Tea",points:60},
- {name:"Clean at inspection",points:50}
+ {name:'Flip & catch',points:50},
+ {name:'Eat a pancake',points:50},
+ {name:'Deliver 3 pancakes',points:50},
+ {name:'Scottish delivery',points:50},
+ {name:'High-5 Tea',points:60},
+ {name:'Clean at inspection',points:50}
 ],
 
 shopRepeatable:[
- {name:"Matchstick",cost:2},
- {name:"Peg",cost:2},
- {name:"Pan",cost:4},
- {name:"Candle",cost:4},
- {name:"Teaspoon",cost:5},
- {name:"2 bottles of mix",cost:15},
- {name:"Bottle of oil",cost:2},
- {name:"Question",cost:5}
+ {name:'Matchstick',cost:2},
+ {name:'Peg',cost:2},
+ {name:'Pan',cost:4},
+ {name:'Candle',cost:4},
+ {name:'Teaspoon',cost:5},
+ {name:'2 bottles of mix',cost:15},
+ {name:'Bottle of oil',cost:2},
+ {name:'Question',cost:5}
 ],
 
 shopOneOff:[
- {name:"Ultimate starter set",cost:50},
- {name:"Matchbox",cost:10}
+ {name:'Ultimate starter set',cost:50},
+ {name:'Matchbox',cost:10}
 ]
 };
 },
 
 methods:{
-openMenu(team){ this.activeTeam = team; },
+openMenu(team){ sfx.ensure(); this.activeTeam = team; },
 
 editTeam(team){
- const newName = prompt("Enter new team name:", team.name);
- if(newName && newName.trim()){
-   team.name = newName.trim();
-   this.save();
- }
+ const newName = prompt('Enter new team name:', team.name);
+ if(newName && newName.trim()){ team.name = newName.trim(); this.save(); }
 },
 
-addPoints(task){
- this.activeTeam.score += task.points;
- earnSound.currentTime=0; earnSound.play();
- this.afterScoreChange();
-},
+addPoints(task){ this.activeTeam.score += task.points; sfx.earn(); this.afterScoreChange(); },
 
 completeOneOff(task){
  if(this.activeTeam.usedTasks.includes(task.name)) return;
  this.activeTeam.score += task.points;
  this.activeTeam.usedTasks.push(task.name);
  this.activeTeam.badges.push(task.name);
- earnSound.currentTime=0; earnSound.play();
+ sfx.earn();
  this.afterScoreChange();
 },
 
 buyItem(item){
  if(this.activeTeam.score < item.cost) return;
  this.activeTeam.score -= item.cost;
- spendSound.currentTime=0; spendSound.play();
+ sfx.spend();
  this.afterScoreChange();
 },
 
@@ -345,7 +240,7 @@ buyOneOff(item){
  if(this.activeTeam.score < item.cost) return;
  this.activeTeam.score -= item.cost;
  this.activeTeam.usedShop.push(item.name);
- spendSound.currentTime=0; spendSound.play();
+ sfx.spend();
  this.afterScoreChange();
 },
 
@@ -355,7 +250,7 @@ checkLeader(){
  const leader = [...this.teams].sort((a,b)=>b.score-a.score)[0];
  if(this.lastLeader !== leader.id){
    this.flashingTeam = leader.id;
-   winSound.currentTime=0; winSound.play();
+   sfx.win();
    setTimeout(()=>this.flashingTeam=null,2500);
  }
  this.lastLeader = leader.id;
@@ -363,20 +258,20 @@ checkLeader(){
 
 openReset(){
  this.resetCode = Math.random().toString(36).substring(2,6).toUpperCase();
- this.resetInput="";
+ this.resetInput='';
  this.showReset=true;
 },
 
 confirmReset(){
  if(this.resetInput === this.resetCode){
-   localStorage.removeItem("pp_teams");
+   localStorage.removeItem('pp_teams');
    location.reload();
- } else alert("Code incorrect!");
+ } else alert('Code incorrect!');
 },
 
-save(){ localStorage.setItem("pp_teams", JSON.stringify(this.teams)); }
+save(){ localStorage.setItem('pp_teams', JSON.stringify(this.teams)); }
 }
-}).mount("#app");
+}).mount('#app');
 </script>
 
 </body>
