@@ -204,16 +204,33 @@ activeTeam:null,
 undoStack:[],
 resetMode:false,resetCode:'',resetEntry:'',
 
+// ✅ Repeatable scoring tasks
+repeatableTasks:[
+{name:'Make a pancake',points:10},
+{name:'Make a wonky pancake',points:8},
+{name:'5 pancake stack',points:20},
+{name:'10 pancake stack',points:50},
+{name:'Answer a question',points:10}
+],
+
+// ⭐ One-off bonus tasks (unchanged behaviour)
 tasks:[
-{name:'Make a pancake',points:10,repeat:true},
-{name:'Wonky pancake',points:8,repeat:true},
-{name:'5 stack',points:20,repeat:true},
-{name:'10 stack',points:50,repeat:true},
-{name:'Answer question',points:10,repeat:true},
 {name:'Flip & catch',points:50,repeat:false}
 ],
+// ✅ Repeatable shop purchases
+shopRepeatable:[
+{name:'Matchstick',cost:2},
+{name:'Peg',cost:2},
+{name:'Pan',cost:4},
+{name:'Candle',cost:4},
+{name:'Teaspoon',cost:5},
+{name:'2 bottles of mix',cost:15},
+{name:'Bottle of oil',cost:2},
+{name:'Question',cost:5}
+],
+
+// ⭐ One-off purchases
 shop:[
-{name:'Matchstick',points:2,repeat:true},
 {name:'Ultimate set',points:50,repeat:false}
 ]
 }
