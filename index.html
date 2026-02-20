@@ -10,11 +10,12 @@
 body {
  margin:0;
  font-family:'Trebuchet MS', system-ui, sans-serif;
- background:linear-gradient(135deg,#fff3e0,#ffe082,#ffccbc);
  color:#333;
+ /* 🥞 Cartoon pancake background using inline SVG pattern */
+ background-color:#fff3e0;
+ background-image:url("data:image/svg+xml,%3Csvg width='160' height='160' viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cg opacity='0.18'%3E%3Ccircle cx='80' cy='80' r='38' fill='%23f4a261'/%3E%3Ccircle cx='70' cy='70' r='6' fill='%23e76f51'/%3E%3Ccircle cx='92' cy='88' r='5' fill='%23e76f51'/%3E%3Ccircle cx='82' cy='96' r='4' fill='%23e76f51'/%3E%3C/g%3E%3C/svg%3E");
 }
 
-/* 🎉 Header restored */
 .header {
  text-align:center;
  font-size:2.8rem;
@@ -44,30 +45,17 @@ th:hover { transform:scaleX(1.08); box-shadow:0 14px 30px rgba(0,0,0,.25); }
 .team-name { font-size:2.2rem; text-shadow:2px 2px 4px rgba(0,0,0,.35); }
 .score { font-size:2.6rem; margin-top:10px; }
 
-/* small pencil */
-.edit-btn {
- position:absolute;
- bottom:6px;
- right:10px;
- font-size:.9rem;
- opacity:.65;
-}
+.edit-btn { position:absolute; bottom:6px; right:10px; font-size:.9rem; opacity:.65; }
 
-/* overlay for click-away */
-.overlay {
- position:fixed;
- inset:0;
- background:rgba(0,0,0,0.15);
- z-index:90;
-}
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,0.15); z-index:90; }
 
-/* colourful menu restored */
+/* 📋 Menu width constrained so it never becomes edge-to-edge */
 .menu {
  position:fixed;
  top:90px;
  left:50%;
  transform:translateX(-50%);
- width:80%;
+ width:min(900px, 92vw);
  background:linear-gradient(180deg,#ffffff,#fff8e1);
  border-radius:24px;
  padding:24px;
@@ -77,10 +65,10 @@ th:hover { transform:scaleX(1.08); box-shadow:0 14px 30px rgba(0,0,0,.25); }
  z-index:100;
 }
 
-.menu-column { flex:1; max-height:60vh; overflow-y:auto; }
+.menu-column { flex:1 1 0; max-height:60vh; overflow-y:auto; }
 .menu h3 { margin-top:0; font-size:1.6rem; }
 
-button {
+button.action {
  font-size:1.1rem;
  margin:6px 0;
  padding:10px;
@@ -90,29 +78,22 @@ button {
  background:linear-gradient(90deg,#4dd0e1,#4db6ac);
  color:white;
  cursor:pointer;
- transition:transform .15s, box-shadow .15s;
 }
-button:hover { transform:scale(1.03); box-shadow:0 6px 14px rgba(0,0,0,.25); }
 button.used { background:#ccc; color:#666; }
 
-/* badge styling */
 .badges { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; min-height:50px; }
 .badge {
- width:44px; height:44px;
- border-radius:50%;
+ width:44px; height:44px; border-radius:50%;
  background:radial-gradient(circle at 30% 30%,#fff176,#fbc02d);
- display:flex;
- align-items:center;
- justify-content:center;
- font-size:1.3rem;
- box-shadow:0 4px 10px rgba(0,0,0,.25);
+ display:flex; align-items:center; justify-content:center;
+ font-size:1.3rem; box-shadow:0 4px 10px rgba(0,0,0,.25);
 }
 .badge:nth-child(even){ transform:translateY(8px); }
 
 .flash { animation:flash 0.6s alternate 4; }
 @keyframes flash { from{filter:brightness(1);} to{filter:brightness(1.6);} }
 
-/* reset + undo styled consistently */
+/* floating controls */
 .reset-btn, .undo-btn {
  position:fixed;
  bottom:12px;
@@ -123,7 +104,7 @@ button.used { background:#ccc; color:#666; }
  color:white;
  font-size:1rem;
  cursor:pointer;
- box-shadow:0 6px 14px rgba(0,0,0,.25);
+ width:auto;            /* ensure NOT full width */
 }
 .reset-btn { right:12px; }
 .undo-btn { left:12px; }
@@ -138,12 +119,8 @@ button.used { background:#ccc; color:#666; }
 <div id="app">
 <table>
 <tr>
-<th v-for="team in orderedTeams"
-    :key="team.id"
-    class="leaderboard-move"
-    :class="{flash:team.flash}"
-    :style="{background:team.color}"
-    @click="openMenu(team)">
+<th v-for="team in orderedTeams" :key="team.id" class="leaderboard-move"
+    :class="{flash:team.flash}" :style="{background:team.color}" @click="openMenu(team)">
 
 <div class="team-name">{{team.name}}</div>
 <div class="score">{{team.score}}</div>
@@ -162,13 +139,19 @@ button.used { background:#ccc; color:#666; }
 <div v-if="activeTeam" class="menu" @click.stop>
 <div class="menu-column">
 <h3>Points</h3>
-<button v-for="task in tasks" :class="{used:isUsed(activeTeam,task)}" @click="doTask(activeTeam,task)">
+<button class="action"
+ v-for="task in tasks"
+ :class="{used:(!task.repeat && isUsed(activeTeam,task))}"
+ @click="doTask(activeTeam,task)">
 {{task.name}} ({{task.points}})
 </button>
 </div>
 <div class="menu-column">
 <h3>Shop</h3>
-<button v-for="item in shop" :class="{used:isUsed(activeTeam,item)}" @click="buyItem(activeTeam,item)">
+<button class="action"
+ v-for="item in shop"
+ :class="{used:(!item.repeat && isUsed(activeTeam,item))}"
+ @click="buyItem(activeTeam,item)">
 {{item.name}} (-{{item.points}})
 </button>
 </div>
@@ -182,13 +165,31 @@ button.used { background:#ccc; color:#666; }
 <p>Type this code to reset:</p>
 <h2>{{resetCode}}</h2>
 <input ref="resetInput" v-model="resetEntry" />
-<button @click="confirmReset">Confirm</button>
+<button class="action" @click="confirmReset">Confirm</button>
 </div>
 </div>
 </div>
 
 <script>
 const {createApp} = Vue;
+
+/* 🔊 Arcade-style sound generator */
+let audioCtx;
+function beep(freq,duration){
+ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+ const o=audioCtx.createOscillator();
+ const g=audioCtx.createGain();
+ o.type='square';
+ o.frequency.value=freq;
+ g.gain.value=0.1;
+ o.connect(g); g.connect(audioCtx.destination);
+ o.start();
+ setTimeout(()=>o.stop(),duration);
+}
+function scoreSound(){ beep(880,120); }
+function spendSound(){ beep(220,140); }
+function winSound(){ beep(660,120); setTimeout(()=>beep(990,150),140); }
+
 createApp({
 data(){
 return{
@@ -217,9 +218,7 @@ shop:[
 ]
 }
 },
-computed:{
-orderedTeams(){ return [...this.teams].sort((a,b)=>b.score-a.score); }
-},
+computed:{ orderedTeams(){ return [...this.teams].sort((a,b)=>b.score-a.score); }},
 methods:{
 openMenu(team){ this.activeTeam=team; },
 closeMenu(){ this.activeTeam=null; },
@@ -229,14 +228,15 @@ undo(){ if(this.undoStack.length) this.teams=JSON.parse(this.undoStack.pop()); }
 
 isUsed(team,item){ return team.used.includes(item.name); },
 
-finishAction(){
+finishAction(soundFn){
 this.closeMenu();
-setTimeout(()=>this.checkLeaders(),200);
+setTimeout(()=>{ soundFn(); this.checkLeaders(); },180);
 },
 
 checkLeaders(){
 const max=Math.max(...this.teams.map(t=>t.score));
 const leaders=this.teams.filter(t=>t.score===max && max>0);
+if(leaders.length) winSound();
 leaders.forEach(t=>{t.flash=true;setTimeout(()=>t.flash=false,2500);});
 },
 
@@ -246,7 +246,7 @@ if(!task.repeat && this.isUsed(team,task)) return;
 this.saveUndo();
 team.score+=task.points;
 if(!task.repeat){ team.used.push(task.name); team.badges.push(task.name); }
-this.finishAction();
+this.finishAction(scoreSound);
 },
 
 buyItem(team,item){
@@ -255,7 +255,7 @@ if(!item.repeat && this.isUsed(team,item)) return;
 this.saveUndo();
 team.score-=item.points;
 if(!item.repeat) team.used.push(item.name);
-this.finishAction();
+this.finishAction(spendSound);
 },
 
 editName(team){ const name=prompt('Team name:',team.name); if(name) team.name=name; },
