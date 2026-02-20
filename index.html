@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <title>Pancake Pandemonium</title>
-
-<!-- Vue (no build step required) -->
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 
 <style>
+:root { font-size: 20px; } /* ~2x bigger text */
+
 body {
   font-family: "Comic Sans MS", cursive, sans-serif;
   background: linear-gradient(135deg,#ffb347,#ffcc33);
@@ -17,7 +17,7 @@ body {
 
 h1 {
   text-align:center;
-  font-size:3em;
+  font-size:3rem;
   color:#fff;
   text-shadow:3px 3px #ff4081;
 }
@@ -32,18 +32,21 @@ table {
 }
 
 th, td {
-  padding:20px;
+  padding:25px;
   text-align:center;
-  font-size:1.3em;
 }
 
 th {
   cursor:pointer;
   color:white;
+  position:relative;
+  transition:transform .2s;
 }
 
+th:hover { transform:scale(1.03); }
+
 .score {
-  font-size:2em;
+  font-size:2.5rem;
   font-weight:bold;
 }
 
@@ -51,35 +54,61 @@ th {
   display:inline-block;
   background:#444;
   color:white;
-  padding:4px 8px;
+  padding:6px 10px;
   border-radius:10px;
-  margin:3px;
-  font-size:.7em;
+  margin:4px;
+  font-size:.8rem;
+}
+
+/* Flash animation for leader */
+@keyframes flash {
+  0% { filter:brightness(1); }
+  50% { filter:brightness(2.2); }
+  100% { filter:brightness(1); }
+}
+
+.flash { animation: flash .6s ease-in-out 4; }
+
+.overlay {
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.25);
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding-top:5vh;
 }
 
 .menu {
-  position:fixed;
-  top:10%;
-  left:50%;
-  transform:translateX(-50%);
-  width:420px;
+  width:70vw;
+  max-width:900px;
   background:white;
   border-radius:20px;
   padding:20px;
   box-shadow:0 20px 50px rgba(0,0,0,.4);
 }
 
-.menu h2 {
-  margin-top:0;
+.menu-columns {
+  display:flex;
+  gap:20px;
+}
+
+.menu-section {
+  flex:1;
+  max-height:60vh;
+  overflow-y:auto;
+  border:2px dashed #ffd54f;
+  border-radius:15px;
+  padding:15px;
 }
 
 button {
   width:100%;
-  margin:5px 0;
-  padding:10px;
+  margin:6px 0;
+  padding:14px;
   border:none;
-  border-radius:10px;
-  font-size:1em;
+  border-radius:12px;
+  font-size:1rem;
   cursor:pointer;
   background:#ffcc00;
 }
@@ -91,10 +120,27 @@ button.used {
   cursor:not-allowed;
 }
 
-.close {
-  background:#ff4081;
-  color:white;
-  font-weight:bold;
+.close { background:#ff4081; color:white; }
+
+.reset-btn {
+  position:fixed;
+  bottom:10px;
+  right:10px;
+  font-size:.8rem;
+  opacity:.6;
+}
+
+.reset-box {
+  background:white;
+  padding:25px;
+  border-radius:15px;
+  text-align:center;
+}
+
+input {
+  font-size:1.2rem;
+  padding:8px;
+  margin-top:10px;
 }
 </style>
 </head>
@@ -107,13 +153,13 @@ button.used {
 <table>
 <tr>
   <th v-for="team in teams"
+      :key="team.name"
+      :class="{flash: flashingTeam===team.name}"
       :style="{background: team.color}"
       @click="openMenu(team)">
       {{team.name}}
       <div>
-        <span v-for="badge in team.badges" class="badge">
-          {{badge}}
-        </span>
+        <span v-for="badge in team.badges" class="badge">{{badge}}</span>
       </div>
   </th>
 </tr>
@@ -122,48 +168,69 @@ button.used {
 </tr>
 </table>
 
-<!-- Popup Menu -->
-<div v-if="activeTeam" class="menu">
-  <h2>{{activeTeam.name}} Team</h2>
+<button class="reset-btn" @click="openReset">Reset</button>
 
-  <h3>Points</h3>
+<!-- TEAM MENU -->
+<div v-if="activeTeam" class="overlay" @click.self="activeTeam=null">
+  <div class="menu">
+    <h2>{{activeTeam.name}} Team</h2>
 
-  <strong>Repeatable</strong>
-  <button v-for="task in repeatableTasks"
-          @click="addPoints(task)">
+    <div class="menu-columns">
+      <div class="menu-section">
+        <h3>Points</h3>
+        <strong>Repeatable</strong>
+        <button v-for="task in repeatableTasks" @click="addPoints(task)">
           {{task.name}} (+{{task.points}})
-  </button>
+        </button>
 
-  <strong>One-Off Bonuses</strong>
-  <button v-for="task in oneOffTasks"
+        <strong>One-Off Bonuses</strong>
+        <button v-for="task in oneOffTasks"
           :class="{used: activeTeam.usedTasks.includes(task.name)}"
           :disabled="activeTeam.usedTasks.includes(task.name)"
           @click="completeOneOff(task)">
           {{task.name}} (+{{task.points}})
-  </button>
+        </button>
+      </div>
 
-  <h3>Shop</h3>
-
-  <strong>Repeatable</strong>
-  <button v-for="item in shopRepeatable"
-          @click="buyItem(item)">
+      <div class="menu-section">
+        <h3>Shop</h3>
+        <strong>Repeatable</strong>
+        <button v-for="item in shopRepeatable" @click="buyItem(item)">
           {{item.name}} (-{{item.cost}})
-  </button>
+        </button>
 
-  <strong>One-Off Purchases</strong>
-  <button v-for="item in shopOneOff"
+        <strong>One-Off</strong>
+        <button v-for="item in shopOneOff"
           :class="{used: activeTeam.usedShop.includes(item.name)}"
           :disabled="activeTeam.usedShop.includes(item.name)"
           @click="buyOneOff(item)">
           {{item.name}} (-{{item.cost}})
-  </button>
+        </button>
+      </div>
+    </div>
 
-  <button class="close" @click="activeTeam=null">Close</button>
+    <button class="close" @click="activeTeam=null">Close</button>
+  </div>
+</div>
+
+<!-- RESET CONFIRM -->
+<div v-if="showReset" class="overlay" @click.self="showReset=false">
+  <div class="reset-box">
+    <h3>Type this code to reset:</h3>
+    <h2>{{resetCode}}</h2>
+    <input v-model="resetInput" placeholder="Enter code" />
+    <br><br>
+    <button @click="confirmReset">Confirm Reset</button>
+  </div>
 </div>
 
 </div>
 
 <script>
+const earnSound = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQgAAAAA");
+const spendSound = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQgAAAAA");
+const winSound = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQgAAAAA");
+
 const { createApp } = Vue;
 
 createApp({
@@ -178,6 +245,12 @@ teams: JSON.parse(localStorage.getItem("pp_teams")) || [
 ],
 
 activeTeam:null,
+flashingTeam:null,
+lastLeader:null,
+
+showReset:false,
+resetCode:"",
+resetInput:"",
 
 repeatableTasks:[
  {name:"Make a pancake",points:10},
@@ -219,31 +292,66 @@ openMenu(team){ this.activeTeam = team; },
 
 addPoints(task){
  this.activeTeam.score += task.points;
- this.save();
+ earnSound.currentTime=0; earnSound.play();
+ this.afterScoreChange();
 },
 
 completeOneOff(task){
  if(this.activeTeam.usedTasks.includes(task.name)) return;
-
  this.activeTeam.score += task.points;
  this.activeTeam.usedTasks.push(task.name);
  this.activeTeam.badges.push(task.name);
- this.save();
+ earnSound.currentTime=0; earnSound.play();
+ this.afterScoreChange();
 },
 
 buyItem(item){
  if(this.activeTeam.score < item.cost) return;
  this.activeTeam.score -= item.cost;
- this.save();
+ spendSound.currentTime=0; spendSound.play();
+ this.afterScoreChange();
 },
 
 buyOneOff(item){
  if(this.activeTeam.usedShop.includes(item.name)) return;
  if(this.activeTeam.score < item.cost) return;
-
  this.activeTeam.score -= item.cost;
  this.activeTeam.usedShop.push(item.name);
+ spendSound.currentTime=0; spendSound.play();
+ this.afterScoreChange();
+},
+
+afterScoreChange(){
+ this.checkLeader();
  this.save();
+},
+
+checkLeader(){
+ const leader = [...this.teams].sort((a,b)=>b.score-a.score)[0];
+ if(!leader) return;
+
+ if(this.lastLeader !== leader.name){
+   this.flashingTeam = leader.name;
+   winSound.currentTime=0; winSound.play();
+   setTimeout(()=>this.flashingTeam=null,2500);
+ }
+
+ this.lastLeader = leader.name;
+},
+
+openReset(){
+ this.resetCode = Math.random().toString(36).substring(2,6).toUpperCase();
+ this.resetInput="";
+ this.showReset=true;
+},
+
+confirmReset(){
+ if(this.resetInput === this.resetCode){
+   localStorage.removeItem("pp_teams");
+   location.reload();
+ } else {
+   alert("Code incorrect!");
+ }
 },
 
 save(){
