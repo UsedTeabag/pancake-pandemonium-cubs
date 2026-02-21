@@ -7,12 +7,13 @@
 
 <style>
 :root { font-size: 20px; }
-body { font-family: "Comic Sans MS", cursive, sans-serif; background: linear-gradient(135deg,#ffb347,#ffcc33); margin:0; padding:20px; }
-h1 { text-align:center; font-size:3rem; color:#fff; text-shadow:3px 3px #ff4081; }
+body { font-family: "Comic Sans MS", cursive, sans-serif; background: linear-gradient(135deg,#ffb347,#ffcc33); margin:0; padding:40px; }
+h1 { text-align:center; font-size:4rem; color:#fff; text-shadow:3px 3px #ff4081; }
 
 table { width:100%; table-layout:fixed; border-collapse:collapse; background:white; border-radius:20px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,.2); }
 th, td { width:20%; padding:25px; text-align:center; vertical-align:top; }
-th { cursor:pointer; color:white; position:relative; }
+th { cursor:pointer; color:white; position:relative; transition: transform .2s ease, z-index 0s; }
+th:hover { transform: scale(1.1); z-index: 10; }
 
 .team-name { font-size:2.3rem; font-weight:bold; text-shadow:2px 2px 4px rgba(0,0,0,.35); }
 
@@ -56,6 +57,10 @@ th { cursor:pointer; color:white; position:relative; }
 @keyframes flash { 0%{filter:brightness(1);} 50%{filter:brightness(2.2);} 100%{filter:brightness(1);} }
 .flash { animation: flash .6s ease-in-out 4; }
 
+@keyframes bigFlash { 0%{filter:brightness(1);} 50%{filter:brightness(3);} 100%{filter:brightness(1);} }
+@keyframes expandContract { 0%{transform:scale(1);} 25%{transform:scale(1.3);} 50%{transform:scale(1);} 75%{transform:scale(1.3);} 100%{transform:scale(1);} }
+.new-leader { animation: bigFlash .8s ease-in-out 6, expandContract .8s ease-in-out 6; }
+
 .overlay { position:fixed; inset:0; background:rgba(0,0,0,.25); display:flex; align-items:flex-start; justify-content:center; padding-top:5vh; }
 .menu { width:70vw; max-width:900px; background:white; border-radius:20px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,.4); }
 .menu-columns { display:flex; gap:20px; }
@@ -67,8 +72,16 @@ button.used { background:#ccc; cursor:not-allowed; }
 .close { background:#ff4081; color:white; }
 
 .reset-btn { position:fixed; bottom:12px; right:12px; width:auto; padding:8px 14px; font-size:.85rem; opacity:.7; }
+.undo-btn { position:fixed; bottom:12px; left:12px; width:auto; padding:8px 14px; font-size:.85rem; opacity:.7; }
+.undo-btn:disabled { opacity:.3; cursor:not-allowed; background:#cccccc !important; }
 .reset-box { background:white; padding:25px; border-radius:15px; text-align:center; }
+.answer-btn { width:48%; margin:10px 1%; padding:14px; }
 input { font-size:1.2rem; padding:8px; margin-top:10px; }
+
+@keyframes resultFlash { 0%{opacity:1; transform:scale(0.8);} 50%{opacity:1; transform:scale(1.2);} 100%{opacity:0; transform:scale(1);} }
+.result-display { position:fixed; font-size:4rem; font-weight:bold; text-shadow:3px 3px 6px rgba(0,0,0,.5); z-index:100; animation:resultFlash 1.5s ease-out forwards; }
+.result-correct { color:#4caf50; }
+.result-incorrect { color:#f44336; }
 </style>
 </head>
 
@@ -77,11 +90,15 @@ input { font-size:1.2rem; padding:8px; margin-top:10px; }
 
 <h1>🥞 Pancake Pandemonium 🥞</h1>
 
+<div v-if="resultMessage" :class="['result-display', resultMessage.correct ? 'result-correct' : 'result-incorrect']" :style="{top: resultMessage.top, left: resultMessage.left, transform: 'translate(-50%, -50%)'}">
+  {{resultMessage.correct ? 'CORRECT' : 'INCORRECT'}}
+</div>
+
 <table>
 <tr>
   <th v-for="team in teams"
       :key="team.id"
-      :class="{flash: flashingTeams.includes(team.id)}"
+      :class="{flash: flashingTeams.includes(team.id), 'new-leader': newLeaderId === team.id}"
       :style="{background: team.color}"
       @click="openMenu(team)">
 
@@ -103,7 +120,7 @@ input { font-size:1.2rem; padding:8px; margin-top:10px; }
     <!-- Achievements now live under the points -->
     <div class="badges-row">
       <div v-for="badge in team.badges" class="badge-icon">
-        <img :src="badgeImages[badge]" />
+        <img :src="badgeImages[badge]" :title="badge" />
       </div>
     </div>
   </td>
@@ -111,9 +128,10 @@ input { font-size:1.2rem; padding:8px; margin-top:10px; }
 </table>
 
 <button class="reset-btn" @click="openReset">Reset</button>
+<button class="undo-btn" @click="undo" :disabled="undoStack.length === 0">↶ Undo</button>
 
 <!-- TEAM MENU -->
-<div v-if="activeTeam" class="overlay" @click.self="activeTeam=null">
+<div v-if="activeTeam" class="overlay" @click.self="closeMenuAndExecuteDeferred">
   <div class="menu">
     <h2>{{activeTeam.name}} Team</h2>
 
@@ -127,7 +145,7 @@ input { font-size:1.2rem; padding:8px; margin-top:10px; }
         <button v-for="task in oneOffTasks"
           :class="{used: activeTeam.usedTasks.includes(task.name)}"
           :disabled="activeTeam.usedTasks.includes(task.name)"
-          @click="completeOneOff(task)">
+          @click="completeOneOff(task); closeMenuAndExecuteDeferred()">
           {{task.name}} (+{{task.points}})
         </button>
       </div>
@@ -147,7 +165,16 @@ input { font-size:1.2rem; padding:8px; margin-top:10px; }
       </div>
     </div>
 
-    <button class="close" @click="activeTeam=null">Close</button>
+    <button class="close" @click="closeMenuAndExecuteDeferred">Close</button>
+  </div>
+</div>
+
+<!-- QUESTION MODAL -->
+<div v-if="showQuestion" class="overlay" @click.self="showQuestion=false">
+  <div class="reset-box">
+    <h3>{{currentQuestion?.question}}</h3>
+    <button @click="answerQuestion(true)" class="answer-btn">True</button>
+    <button @click="answerQuestion(false)" class="answer-btn">False</button>
   </div>
 </div>
 
@@ -156,7 +183,7 @@ input { font-size:1.2rem; padding:8px; margin-top:10px; }
   <div class="reset-box">
     <h3>Type this code to reset:</h3>
     <h2>{{resetCode}}</h2>
-    <input v-model="resetInput" placeholder="Enter code" />
+    <input ref="resetInput" v-model="resetInput" placeholder="Enter code" @keydown.enter="confirmReset" @keydown.esc="showReset=false" />
     <br><br>
     <button @click="confirmReset">Confirm Reset</button>
   </div>
@@ -170,9 +197,66 @@ class SoundFX {
   constructor(){ this.ctx=null; }
   ensure(){ if(!this.ctx){ this.ctx=new(window.AudioContext||window.webkitAudioContext)(); } if(this.ctx.state==='suspended') this.ctx.resume(); }
   tone(f,d,t='sine',v=.2){ this.ensure(); const o=this.ctx.createOscillator(); const g=this.ctx.createGain(); o.type=t; o.frequency.value=f; g.gain.value=v; o.connect(g); g.connect(this.ctx.destination); o.start(); o.stop(this.ctx.currentTime+d); }
-  earn(){ this.tone(880,.12,'triangle'); }
-  spend(){ this.tone(220,.15,'sawtooth'); }
-  win(){ this.tone(660,.15); setTimeout(()=>this.tone(880,.15),150); setTimeout(()=>this.tone(1320,.2),300); }
+  earn(){
+    const t = (delay, freq, duration, type='sine') => setTimeout(() => this.tone(freq, duration, type), delay);
+    
+    // Opening flourish - ascending
+    t(0, 523, 0.1, 'sine');      // C5
+    t(120, 659, 0.1, 'sine');    // E5
+    t(240, 1047, 0.4, 'sine');   // C6 (high)
+  }
+  spend(){ 
+    const t = (delay, freq, duration, type='sine') => setTimeout(() => this.tone(freq, duration, type), delay);
+    t(0, 523, 0.1, 'sine');
+    t(120, 494, 0.1, 'sine');
+    t(240, 330, 0.15, 'sine');
+  }
+  win(){
+    // Exciting ascending fanfare that lasts ~4.8 seconds
+    const t = (delay, freq, duration, type='sine') => setTimeout(() => this.tone(freq, duration, type), delay);
+    
+    // Opening flourish - ascending
+    t(0, 523, 0.1, 'sine');      // C5
+    t(120, 659, 0.1, 'sine');    // E5
+    t(240, 784, 0.15, 'sine');   // G5
+    t(400, 1047, 0.2, 'sine');   // C6 (high)
+    
+    // Fast descending pattern for drama
+    t(650, 784, 0.08, 'square');
+    t(750, 659, 0.08, 'square');
+    t(850, 784, 0.08, 'square');
+    t(950, 523, 0.12, 'square');
+    
+    // Ascending again - even more exciting
+    t(1150, 523, 0.1, 'triangle');
+    t(1270, 659, 0.1, 'triangle');
+    t(1390, 784, 0.1, 'triangle');
+    t(1510, 1047, 0.15, 'triangle');
+    t(1700, 1319, 0.2, 'triangle'); // E6 (very high)
+    
+    // Quick flourish - rapid notes
+    t(1950, 1047, 0.06, 'sine');
+    t(2050, 1175, 0.06, 'sine');
+    t(2150, 1319, 0.08, 'sine');
+    t(2280, 1047, 0.08, 'sine');
+    t(2400, 784, 0.12, 'sine');
+    
+    // Triumphant middle section - solid tones
+    t(2600, 659, 0.15, 'sine');
+    t(2800, 784, 0.15, 'sine');
+    t(3000, 1047, 0.2, 'sine');
+    
+    // Accelerating pattern toward climax
+    t(3250, 1319, 0.08, 'triangle');
+    t(3370, 1175, 0.08, 'triangle');
+    t(3490, 1319, 0.08, 'triangle');
+    t(3610, 1047, 0.1, 'triangle');
+    
+    // Grand finale - sustained high note with supporting harmonics
+    t(3800, 1047, 0.4, 'sine');    // Hold high C
+    t(3800, 659, 0.4, 'sine');     // Harmonic underneath
+    t(3800, 1319, 0.35, 'sine');   // Even higher note
+  }
 }
 const sfx=new SoundFX();
 
@@ -180,30 +264,56 @@ const { createApp } = Vue;
 
 createApp({
 data(){
+const savedTeams = JSON.parse(localStorage.getItem('pp_teams')) || [
+    {id:1,name:'Blue',color:'#2196f3',score:0,badges:[],usedTasks:[],usedShop:[],answeredQuestions:[]},
+    {id:2,name:'Red',color:'#f44336',score:0,badges:[],usedTasks:[],usedShop:[],answeredQuestions:[]},
+    {id:3,name:'White',color:'#9e9e9e',score:0,badges:[],usedTasks:[],usedShop:[],answeredQuestions:[]},
+    {id:4,name:'Yellow',color:'#ffeb3b',score:0,badges:[],usedTasks:[],usedShop:[],answeredQuestions:[]},
+    {id:5,name:'Green',color:'#4caf50',score:0,badges:[],usedTasks:[],usedShop:[],answeredQuestions:[]}
+  ];
+// Ensure all teams have answeredQuestions property
+savedTeams.forEach(team => { if(!team.answeredQuestions) team.answeredQuestions = []; });
 return {
-teams: JSON.parse(localStorage.getItem('pp_teams')) || [
- {id:1,name:'Blue',color:'#2196f3',score:0,badges:[],usedTasks:[],usedShop:[]},
- {id:2,name:'Red',color:'#f44336',score:0,badges:[],usedTasks:[],usedShop:[]},
- {id:3,name:'White',color:'#9e9e9e',score:0,badges:[],usedTasks:[],usedShop:[]},
- {id:4,name:'Yellow',color:'#ffeb3b',score:0,badges:[],usedTasks:[],usedShop:[]},
- {id:5,name:'Green',color:'#4caf50',score:0,badges:[],usedTasks:[],usedShop:[]}
-],
+  teams: savedTeams,
 
 activeTeam:null,
+deferredSoundType:null,
 flashingTeams:[],
+newLeaderId:null,
 lastMaxScore:0,
+lastLeaderIds:[],
+undoStack:[],
 
 showReset:false,
 resetCode:'',
 resetInput:'',
 
+showQuestion:false,
+currentQuestion:null,
+resultMessage:null,
+
+questions:[
+  {question:'All snakes are poisonous.',answer:false},
+  {question:'Lightning is caused by ripples travelling through clouds.',answer:true},
+  {question:'All spiders spin webs.',answer:false},
+  {question:'The Great Wall of China is visible from space.',answer:false},
+  {question:'Bananas grow on trees.',answer:false},
+  {question:'Water boils at a lower temperature on a mountain.',answer:true},
+  {question:'Humans have more than 5 senses.',answer:true},
+  {question:'Goldfish have a 3-second memory.',answer:false},
+  {question:'The Earth is closer to the Sun than the Moon.',answer:true},
+  {question:'Bats are blind.',answer:false},
+  {question:'Alligators are amphibians.',answer:false},
+  {question:'Spiders are insects.',answer:false}
+],
+
 /* simple inline SVG "images" for achievements */
 badgeImages:{
- 'Flip & catch':'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="gold"/><text x="50" y="60" font-size="50" text-anchor="middle">🥞</text></svg>',
- 'Eat a pancake':'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="orange"/><text x="50" y="60" font-size="50" text-anchor="middle">😋</text></svg>',
+ 'Flip & catch':'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="yellowgreen"/><text x="50" y="60" font-size="50" text-anchor="middle">🍳</text></svg>',
+ 'Eat a pancake':'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="orchid"/><text x="50" y="60" font-size="50" text-anchor="middle">🍽️</text></svg>',
  'Deliver 3 pancakes':'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="peru"/><text x="50" y="60" font-size="45" text-anchor="middle">📦</text></svg>',
  'Scottish delivery':'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="steelblue"/><text x="50" y="60" font-size="45" text-anchor="middle">🎤</text></svg>',
- 'High-5 Tea':'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="pink"/><text x="50" y="60" font-size="45" text-anchor="middle">🫖</text></svg>',
+ 'High-5 Tea':'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="pink"/><text x="50" y="60" font-size="45" text-anchor="middle">🙌</text></svg>',
  'Clean at inspection':'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="lightgreen"/><text x="50" y="60" font-size="45" text-anchor="middle">🧽</text></svg>'
 },
 
@@ -211,8 +321,7 @@ repeatableTasks:[
  {name:'Make a pancake',points:10},
  {name:'Make a wonky pancake',points:8},
  {name:'5 pancake stack',points:20},
- {name:'10 pancake stack',points:50},
- {name:'Answer a question',points:10}
+ {name:'10 pancake stack',points:50}
 ],
 
 oneOffTasks:[
@@ -225,10 +334,20 @@ oneOffTasks:[
 ],
 
 shopRepeatable:[
- {name:'Matchstick',cost:2},{name:'Peg',cost:2},{name:'Pan',cost:4},{name:'Candle',cost:4},{name:'Teaspoon',cost:5},{name:'2 bottles of mix',cost:15},{name:'Bottle of oil',cost:2},{name:'Question',cost:5}
+ {name:'Matchstick',cost:2},
+ {name:'Peg',cost:2},
+ {name:'Pan',cost:4},
+ {name:'Candle',cost:4},
+ {name:'Teaspoon',cost:5},
+ {name:'2 bottles of mix',cost:15},
+ {name:'Bottle of oil',cost:2},
+ {name:'Question',cost:5}
 ],
 
-shopOneOff:[ {name:'Ultimate starter set',cost:50},{name:'Matchbox',cost:10} ]
+shopOneOff:[ 
+ {name:'Ultimate starter set',cost:50},
+ {name:'Matchbox',cost:10}
+]
 };
 },
 
@@ -237,45 +356,147 @@ openMenu(team){ sfx.ensure(); this.activeTeam=team; },
 
 editTeam(team){ const n=prompt('Enter new team name:',team.name); if(n&&n.trim()){team.name=n.trim(); this.save();}},
 
-addPoints(task){ this.activeTeam.score+=task.points; sfx.earn(); this.afterScoreChange(); },
+addPoints(task){ this.pushToUndoStack(); this.activeTeam.score+=task.points; this.deferredSoundType='earn'; },
 
 completeOneOff(task){
  if(this.activeTeam.usedTasks.includes(task.name)) return;
+ this.pushToUndoStack();
  this.activeTeam.score+=task.points;
  this.activeTeam.usedTasks.push(task.name);
  this.activeTeam.badges.push(task.name);
- sfx.earn();
- this.afterScoreChange();
+ this.deferredSoundType='earn';
 },
 
-buyItem(item){ if(this.activeTeam.score<item.cost) return; this.activeTeam.score-=item.cost; sfx.spend(); this.afterScoreChange(); },
+buyItem(item){ 
+  if(this.activeTeam.score<item.cost) return; 
+  if(item.name === 'Question') {
+    const availableQuestions = this.questions.filter(q => !this.activeTeam.answeredQuestions.includes(q.question));
+    if(availableQuestions.length === 0) {
+      alert('All questions answered!');
+      return;
+    }
+    this.pushToUndoStack();
+    this.activeTeam.score -= item.cost;
+    this.currentQuestion = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
+    this.showQuestion = true;
+  } else {
+    this.pushToUndoStack();
+    this.activeTeam.score -= item.cost;
+    this.deferredSoundType = 'spend';
+  }
+},
 
 buyOneOff(item){
  if(this.activeTeam.usedShop.includes(item.name)||this.activeTeam.score<item.cost) return;
+ this.pushToUndoStack();
  this.activeTeam.score-=item.cost;
  this.activeTeam.usedShop.push(item.name);
- sfx.spend();
- this.afterScoreChange();
+ this.deferredSoundType='spend';
 },
 
 afterScoreChange(){ this.checkLeaders(); this.save(); },
 
-/* Flash ALL teams tied for highest score */
-checkLeaders(){
+closeMenuAndExecuteDeferred(){
+ const soundType = this.deferredSoundType;
+ const scoringTeamId = this.activeTeam?.id;
+ this.activeTeam = null;
+ this.deferredSoundType = null;
+ if(soundType) {
+   if(soundType === 'earn') sfx.earn();
+   else if(soundType === 'spend') sfx.spend();
+   this.checkLeaders(scoringTeamId);
+   this.save();
+ }
+},
+
+deferredAfterScoreChange(soundType = 'earn'){
+ const updateVisuals = () => {
+   if(soundType === 'earn') sfx.earn();
+   else if(soundType === 'spend') sfx.spend();
+   this.checkLeaders();
+   this.save();
+ };
+ if(this.activeTeam) {
+   setTimeout(updateVisuals, 400);
+ } else {
+   updateVisuals();
+ }
+},
+
+/* Flash the scoring team and update leaders */
+checkLeaders(scoringTeamId){
  const max=Math.max(...this.teams.map(t=>t.score));
  const leaders=this.teams.filter(t=>t.score===max).map(t=>t.id);
+ const leadersChanged = JSON.stringify(leaders.sort()) !== JSON.stringify(this.lastLeaderIds.sort());
 
- if(max!==this.lastMaxScore){ sfx.win(); }
+ if(leadersChanged){ 
+   sfx.win(); 
+   // Set new leader animation (if only 1 leader, set that; otherwise just use the first one)
+   this.newLeaderId = leaders.length === 1 ? leaders[0] : leaders[0];
+   setTimeout(() => { this.newLeaderId = null; }, 4800); // Clear after animation completes
+ }
 
- this.flashingTeams=leaders;
+ this.flashingTeams = scoringTeamId ? [scoringTeamId] : leaders;
  setTimeout(()=>this.flashingTeams=[],2500);
 
  this.lastMaxScore=max;
+ this.lastLeaderIds=leaders;
 },
 
-openReset(){ this.resetCode=Math.random().toString(36).substring(2,6).toUpperCase(); this.resetInput=''; this.showReset=true; },
+openReset(){ this.resetCode=Math.random().toString(36).substring(2,4).toLowerCase(); this.resetInput=''; this.showReset=true; this.$nextTick(() => this.$refs.resetInput.focus()); },
 
 confirmReset(){ if(this.resetInput===this.resetCode){ localStorage.removeItem('pp_teams'); location.reload(); } else alert('Code incorrect!'); },
+
+pushToUndoStack(){
+ this.undoStack.push(JSON.parse(JSON.stringify(this.teams)));
+},
+
+undo(){
+ if(this.undoStack.length === 0) return;
+ this.teams = this.undoStack.pop();
+ this.save();
+},
+
+answerQuestion(answer){
+ if(!this.currentQuestion) return;
+ const isCorrect = answer === this.currentQuestion.answer;
+ const scoringTeamId = this.activeTeam.id;
+ 
+ // Close all menus
+ this.activeTeam = null;
+ this.showQuestion = false;
+ 
+ // Handle score and sounds
+ if(isCorrect) {
+   this.teams.find(t => t.id === scoringTeamId).score += 10;
+   this.teams.find(t => t.id === scoringTeamId).answeredQuestions.push(this.currentQuestion.question);
+   sfx.earn();
+ } else {
+   sfx.spend();
+ }
+ 
+ this.currentQuestion = null;
+ 
+ // Calculate position of the scoring team header
+ this.$nextTick(() => {
+   const teamIndex = this.teams.findIndex(t => t.id === scoringTeamId);
+   const teamHeaders = document.querySelectorAll('table th');
+   if(teamHeaders[teamIndex]) {
+     const rect = teamHeaders[teamIndex].getBoundingClientRect();
+     this.resultMessage = {
+       correct: isCorrect,
+       top: (rect.top + rect.height / 2) + 'px',
+       left: (rect.left) + 'px'
+     };
+   }
+ });
+ 
+ this.checkLeaders(scoringTeamId);
+ this.save();
+ 
+ // Clear result message after animation completes
+ setTimeout(() => { this.resultMessage = null; }, 1500);
+},
 
 save(){ localStorage.setItem('pp_teams',JSON.stringify(this.teams)); }
 }
