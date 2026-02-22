@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Pancake Pandemonium</title>
-<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 
 <style>
 :root { font-size: 20px; }
@@ -82,6 +82,15 @@ input { font-size:1.2rem; padding:8px; margin-top:10px; }
 .result-display { position:fixed; font-size:4rem; font-weight:bold; text-shadow:3px 3px 6px rgba(0,0,0,.5); z-index:100; animation:resultFlash 1.5s ease-out forwards; }
 .result-correct { color:#4caf50; }
 .result-incorrect { color:#f44336; }
+
+/* Inspection banner */
+.inspection-banner { position:fixed; top:0; left:0; right:0; height:48px; background:#ff7043; color:#fff; display:flex; align-items:center; overflow:hidden; z-index:300; box-shadow:0 6px 14px rgba(0,0,0,.25); }
+.inspection-marquee { white-space:nowrap; display:inline-block; padding-left:100%; font-size:1.1rem; animation:inspection-scroll 12s linear infinite; }
+@keyframes inspection-scroll { from { transform:translateX(0); } to { transform:translateX(-100%); } }
+
+/* Alert button (center bottom) */
+.alert-btn { position:fixed; bottom:12px; left:50%; transform:translateX(-50%); width:auto; padding:0px 0px; background:#ffcc0000; font-size:1.8rem; border-radius:12px; cursor:pointer; }
+.alert-btn:hover { background:#ff9800; }
 </style>
 </head>
 
@@ -92,6 +101,13 @@ input { font-size:1.2rem; padding:8px; margin-top:10px; }
 
 <div v-if="resultMessage" :class="['result-display', resultMessage.correct ? 'result-correct' : 'result-incorrect']" :style="{top: resultMessage.top, left: resultMessage.left, transform: 'translate(-50%, -50%)'}">
   {{resultMessage.correct ? 'CORRECT' : 'INCORRECT'}}
+</div>
+
+<!-- Inspection banner -->
+<div v-if="inspectionActive" class="inspection-banner">
+  <div class="inspection-marquee">
+    🚧🚧🚧 THE INSPECTION IS IMMINENT! 🚧🚧🚧 &nbsp; (starts in {{ formatTime(inspectionRemaining) }}) &nbsp; 🚧🚧🚧 THE INSPECTION IS IMMINENT! 🚧🚧🚧 &nbsp;
+  </div>
 </div>
 
 <table>
@@ -129,6 +145,7 @@ input { font-size:1.2rem; padding:8px; margin-top:10px; }
 
 <button class="reset-btn" @click="openReset">Reset</button>
 <button class="undo-btn" @click="undo" :disabled="undoStack.length === 0">↶ Undo</button>
+<button v-if="!inspectionActive && !inspectionHasBeenTriggered" class="alert-btn" @contextmenu.prevent.stop="startInspection">🚨</button>
 
 <!-- TEAM MENU -->
 <div v-if="activeTeam" class="overlay" @click.self="closeMenuAndExecuteDeferred">
@@ -257,6 +274,59 @@ class SoundFX {
     t(3800, 659, 0.4, 'sine');     // Harmonic underneath
     t(3800, 1319, 0.35, 'sine');   // Even higher note
   }
+  claxon(){
+    // A short horn/claxon sequence
+    this.tone(220,0.18,'square',0.7);
+    setTimeout(()=>this.tone(330,0.22,'square',0.7),180);
+    setTimeout(()=>this.tone(440,0.28,'square',0.6),360);
+  }
+
+  explosion(){
+    // Loud explosion effect with descending bass and sharp burst
+    // Initial bass boom - very low frequency, loud
+    this.tone(80, 0.8, 'square', 0.95);
+    // High-frequency burst for impact
+    this.tone(1200, 0.60, 'triangle', 0.8);
+    // Descending frequencies simulating echo/falloff
+    setTimeout(()=>this.tone(600, 0.2, 'sine', 0.7), 500);
+    setTimeout(()=>this.tone(300, 0.25, 'sine', 0.6), 600);
+    setTimeout(()=>this.tone(150, 0.3, 'sine', 0.4), 750);
+  }
+
+  startDrums(endTimestamp){
+    // Iconic Jaws theme: alternating low-high tone pairs with accelerating rhythm
+    if(this._drumLoop) this.stopDrums();
+    const start = Date.now();
+    const total = Math.max(1, endTimestamp - start);
+    this._drumLoop = { timer: null, running: true };
+
+    const jaws = () => {
+      if(!this._drumLoop || !this._drumLoop.running) return;
+      const remaining = Math.max(0, endTimestamp - Date.now());
+      if(remaining <= 0){ this.stopDrums(); return; }
+      // interval: speeds up from slow to fast as time runs out
+      const min = 240; // fastest interval ms
+      const max = 4800; // slowest interval ms
+      const ratio = remaining / total; // 1 -> 0
+      const interval = Math.round(min + ratio * (max - min));
+
+      // iconic low-high alternating pair: low note gets shorter as interval shrinks, high note stays constant
+      const durationLow = Math.max(0.1, interval / 1000 * 0.4); // low note duration scales with interval (in seconds)
+      const durationHigh = 0.15; // high note always 150ms
+      this.tone(164.81, durationLow, 'sine', 0.8);    // low (E below middle C)
+      this.tone(196, durationLow, 'triangle', 0.8);
+      this.tone(246.94, durationLow, 'sine', 0.8);
+      setTimeout(()=> this.tone(174.61, durationHigh, 'sine', 0.8), Math.round(durationLow * 1000) + 30); // high (B3) after low note completes
+      setTimeout(()=> this.tone(220, durationHigh, 'triangle', 0.8), Math.round(durationLow * 1000) + 30);
+      setTimeout(()=> this.tone(261.63, durationHigh, 'sine', 0.8), Math.round(durationLow * 1000) + 30);
+      this._drumLoop.timer = setTimeout(jaws, interval);
+    };
+    jaws();
+  }
+
+  stopDrums(){
+    if(this._drumLoop){ clearTimeout(this._drumLoop.timer); this._drumLoop.running = false; this._drumLoop = null; }
+  }
 }
 const sfx=new SoundFX();
 
@@ -291,6 +361,12 @@ resetInput:'',
 showQuestion:false,
 currentQuestion:null,
 resultMessage:null,
+
+inspectionActive:false,
+inspectionEnd:0,
+inspectionTimerId:null,
+inspectionRemaining:0,
+inspectionHasBeenTriggered:JSON.parse(localStorage.getItem('pp_inspection_used') || 'false'),
 
 questions:[
   {question:'All snakes are poisonous.',answer:false},
@@ -445,7 +521,7 @@ checkLeaders(scoringTeamId){
 
 openReset(){ this.resetCode=Math.random().toString(36).substring(2,4).toLowerCase(); this.resetInput=''; this.showReset=true; this.$nextTick(() => this.$refs.resetInput.focus()); },
 
-confirmReset(){ if(this.resetInput===this.resetCode){ localStorage.removeItem('pp_teams'); location.reload(); } else alert('Code incorrect!'); },
+confirmReset(){ if(this.resetInput===this.resetCode){ localStorage.removeItem('pp_teams'); localStorage.removeItem('pp_inspection_used'); location.reload(); } else alert('Code incorrect!'); },
 
 pushToUndoStack(){
  this.undoStack.push(JSON.parse(JSON.stringify(this.teams)));
@@ -498,9 +574,52 @@ answerQuestion(answer){
  setTimeout(() => { this.resultMessage = null; }, 1500);
 },
 
+startInspection(){
+  const THREE_MIN = 3 * 60 * 1000;
+  const HALF_MIN = .5 * 60 * 1000;
+  if(this.inspectionTimerId) clearInterval(this.inspectionTimerId);
+  this.inspectionEnd = Date.now() + HALF_MIN;
+  this.inspectionActive = true;
+  this.inspectionHasBeenTriggered = true;
+  localStorage.setItem('pp_inspection_used', 'true');
+  this.updateInspectionTick();
+  this.inspectionTimerId = setInterval(() => this.updateInspectionTick(), 1000);
+  // play claxon and start drum loop
+  try{ sfx.claxon(); sfx.startDrums(this.inspectionEnd); }catch(e){console.warn('sfx start failed',e)}
+},
+
+updateInspectionTick(){
+  const remaining = Math.max(0, this.inspectionEnd - Date.now());
+  this.inspectionRemaining = remaining;
+  if(remaining <= 0){
+    this.stopInspection();
+  }
+},
+
+stopInspection(){
+  if(this.inspectionTimerId) { clearInterval(this.inspectionTimerId); this.inspectionTimerId = null; }
+  this.inspectionActive = false;
+  this.inspectionEnd = 0;
+  this.inspectionRemaining = 0;
+  try{ sfx.stopDrums(); sfx.explosion(); }catch(e){}
+},
+
+formatTime(ms){
+  const s = Math.max(0, Math.ceil(ms/1000));
+  const m = Math.floor(s/60);
+  const sec = s % 60;
+  return m + ':' + String(sec).padStart(2,'0');
+},
+
 save(){ localStorage.setItem('pp_teams',JSON.stringify(this.teams)); }
 }
 }).mount('#app');
+</script>
+
+<script>
+// Inspection timer helpers bound to the page (ensure they are available)
+// The Vue app methods will call startInspection which manages the countdown.
+// No global behavior needed here.
 </script>
 
 </body>
