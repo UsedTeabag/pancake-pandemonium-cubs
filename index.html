@@ -576,9 +576,9 @@ answerQuestion(answer){
 
 startInspection(){
   const THREE_MIN = 3 * 60 * 1000;
-  const HALF_MIN = .5 * 60 * 1000;
+  // const HALF_MIN = .5 * 60 * 1000;
   if(this.inspectionTimerId) clearInterval(this.inspectionTimerId);
-  this.inspectionEnd = Date.now() + HALF_MIN;
+  this.inspectionEnd = Date.now() + THREE_MIN;
   this.inspectionActive = true;
   this.inspectionHasBeenTriggered = true;
   localStorage.setItem('pp_inspection_used', 'true');
